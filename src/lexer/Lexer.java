@@ -1,6 +1,13 @@
+// File: lexer/Lexer.java
+
 package lexer;
 
-import token.Token;
+import token.AbstractToken;
+import token.TokenStructural;
+import token.TokenNumber;
+import token.TokenString;
+import token.TokenValue;
+import token.TokenSpecial;
 import token.TokenType;
 
 /**
@@ -23,18 +30,19 @@ public class Lexer {
 
   /**
    * Tokenizes the input String
-   * Returns a List(dynamic, unlike arrays) of Token Objects
-   * * @return List<Token>; A list of Token objects
+   * Returns a List(dynamic, unlike arrays) of AbstractToken Objects
+   * (Polymorphism)
+   * * @return List<AbstractToken>; A list of Token objects
    */
-  public java.util.List<Token> tokenizeInput() {
+  public java.util.List<AbstractToken> tokenizeInput() {
     // initialize the List of Tokens to return
-    java.util.List<Token> tokenList = new java.util.ArrayList<>();
+    java.util.List<AbstractToken> tokenList = new java.util.ArrayList<>();
 
     while (position < input.length()) {
       // Get the charact at the current position of the input String
       char charAtPosition = input.charAt(position);
       // Initialize the Token to append to the List
-      Token token = null;
+      AbstractToken token = null; // Changed from Token to AbstractToken
 
       /*
        * Main process for the tokenizeInput function
@@ -42,23 +50,24 @@ public class Lexer {
        * the tokenList
        */
       switch (charAtPosition) {
+        // Structural Tokens - Use TokenStructural
         case '{':
-          token = new Token(TokenType.LEFT_BRACE, String.valueOf(charAtPosition));
+          token = new TokenStructural(TokenType.LEFT_BRACE, String.valueOf(charAtPosition));
           break;
         case '}':
-          token = new Token(TokenType.RIGHT_BRACE, String.valueOf(charAtPosition));
+          token = new TokenStructural(TokenType.RIGHT_BRACE, String.valueOf(charAtPosition));
           break;
         case '[':
-          token = new Token(TokenType.LEFT_BRACKET, String.valueOf(charAtPosition));
+          token = new TokenStructural(TokenType.LEFT_BRACKET, String.valueOf(charAtPosition));
           break;
         case ']':
-          token = new Token(TokenType.RIGHT_BRACKET, String.valueOf(charAtPosition));
+          token = new TokenStructural(TokenType.RIGHT_BRACKET, String.valueOf(charAtPosition));
           break;
         case ':':
-          token = new Token(TokenType.COLON, String.valueOf(charAtPosition));
+          token = new TokenStructural(TokenType.COLON, String.valueOf(charAtPosition));
           break;
         case ',':
-          token = new Token(TokenType.COMMA, String.valueOf(charAtPosition));
+          token = new TokenStructural(TokenType.COMMA, String.valueOf(charAtPosition));
           break;
 
         // Skip all whitespaces
@@ -71,6 +80,7 @@ public class Lexer {
           // skips the final position++
           continue;
 
+        // Keyword Tokens - Use TokenValue
         case 't':
           token = handleTrue();
           break;
@@ -81,10 +91,12 @@ public class Lexer {
           token = handleNull();
           break;
 
+        // String Literal - Use TokenString
         case '"':
           token = handleString();
           break;
 
+        // Number Literal - Use TokenNumber
         case '0':
         case '1':
         case '2':
@@ -97,12 +109,14 @@ public class Lexer {
         case '9':
         case '-':
           token = handleNumber();
-          // NOTE: We REMOVE the position-- here. The helper will handle it.
+          // The handler already decrements position--, so we don't need to do that here
           break;
 
         default:
-          token = handleDefault(charAtPosition);
-          break;
+          // Throw LexerException
+          throw new LexerException("Unexpected character encountered.",
+              position,
+              input.substring(position));
       }
 
       // Append token to the list
@@ -111,77 +125,89 @@ public class Lexer {
       }
 
       // advances the position
-      // FIX: This single, unconditional position++ is required now.
-      // The logic shifts responsibility back to the individual handlers to ensure
-      // the pointer is pointing to the character BEFORE the next token's start.
+      // This single, unconditional position++ completes the advancement for all
+      // tokens.
       position++;
     }
 
     // When loop finishes, append EOF token then return tokenList
-    tokenList.add(new Token(TokenType.EOF, "EOF"));
+    tokenList.add(new TokenSpecial(TokenType.EOF, "EOF")); // Use TokenSpecial for EOF
     return tokenList;
   }
 
   // handle keywords
 
-  private Token handleTrue() {
-    // "true" must be great that 4 chars. Return Illegal token if otherwise
+  private AbstractToken handleTrue() {
+    // "true" must be great that 4 chars. Throw Illegal token if otherwise
     if (position + 3 >= input.length()) {
-      return new Token(TokenType.ILLEGAL, input.substring(position));
+      // Throw exception if keyword is incomplete
+      throw new LexerException("Incomplete keyword 'true'.",
+          position,
+          input.substring(position));
     }
 
     // checks if input string contains 'true' at the current position + 3
     if (input.startsWith("true", position)) {
       // advance the possition passed the Keyword 'true' and return the token
-      // The main loop's position++ will advance past the last character 'e'
       position += 3;
-      return new Token(TokenType.TRUE, "true");
+      return new TokenValue(TokenType.TRUE, "true"); // Use TokenValue
     }
 
-    // Return Illegal if these are not met
-    return new Token(TokenType.ILLEGAL, String.valueOf(input.charAt(position)));
+    // Throw exception if characters don't match 'true'
+    throw new LexerException("Found 't' but not followed by 'rue'.",
+        position,
+        input.substring(position));
   }
 
-  private Token handleFalse() {
+  // returns a TokenValue object(inherits from AbstractToken)
+  private AbstractToken handleFalse() {
     // "false" must be greater than 5 chars
     if (position + 4 >= input.length()) {
-      return new Token(TokenType.ILLEGAL, input.substring(position));
+      // Throw exception if keyword is incomplete
+      throw new LexerException("Incomplete keyword 'false'.",
+          position,
+          input.substring(position));
     }
 
     // checks if the input string contains 'false' at the current position
     if (input.startsWith("false", position)) {
       // Advance position past "false" and return the token.
-      // The main loop's position++ will advance past the last character 'e'
       position += 4;
-      return new Token(TokenType.FALSE, "false");
+      return new TokenValue(TokenType.FALSE, "false");
     }
 
-    // return Illegal token if conditions are not met
-    return new Token(TokenType.ILLEGAL, String.valueOf(input.charAt(position)));
+    // Throw exception if characters don't match 'false'
+    throw new LexerException("Found 'f' but not followed by 'alse'.",
+        position,
+        input.substring(position));
   }
 
-  private Token handleNull() {
-    // "null" must be 4 chars in length, check that input is longer, return illegal
+  private AbstractToken handleNull() {
+    // "null" must be 4 chars in length, check that input is longer, throw illegal
     // otherwise
     if (position + 3 >= input.length()) {
-      return new Token(TokenType.ILLEGAL, input.substring(position));
+      // Throw exception if keyword is incomplete
+      throw new LexerException("Incomplete keyword 'null'.",
+          position,
+          input.substring(position));
     }
 
     // Checks the input contains "null" at the current position
     if (input.startsWith("null", position)) {
       // advanced past "null" and return null token
-      // The main loop's position++ will advance past the last character 'l'
       position += 3;
-      return new Token(TokenType.NULL, "null");
+      return new TokenValue(TokenType.NULL, "null"); // Use TokenValue object
     }
 
-    // return Illegal token if conditions are not met
-    return new Token(TokenType.ILLEGAL, String.valueOf(input.charAt(position)));
+    // Throw exception if characters don't match 'null'
+    throw new LexerException("Found 'n' but not followed by 'ull'.",
+        position,
+        input.substring(position));
   }
 
   // handle Litterals
 
-  private Token handleString() {
+  private AbstractToken handleString() {
     // advance past '"'
     position++;
 
@@ -190,7 +216,10 @@ public class Lexer {
 
     // if endPosition is -1, string does not end and JSON is illegal/malformatted
     if (endPosition == -1) {
-      return new Token(TokenType.ILLEGAL, input.substring(position - 1));
+      // Throw exception if string is unterminated
+      throw new LexerException("Unterminated string literal.",
+          position - 1,
+          input.substring(position - 1));
     }
 
     // Get the substring, between the position and endPosition in the input
@@ -203,10 +232,10 @@ public class Lexer {
     position = endPosition;
 
     // return the token with the String litteral
-    return new Token(TokenType.STRING, literal);
+    return new TokenString(literal); // Use TokenString
   }
 
-  private Token handleNumber() {
+  private AbstractToken handleNumber() {
     // get the start position for the Number
     int startPosition = position;
 
@@ -248,17 +277,14 @@ public class Lexer {
     // create the string litteral of the number
     String literal = input.substring(startPosition, position);
 
+    // If the number literal is just "-" or ends with ".", it's illegal JSON.
+    if (literal.equals("-") || literal.endsWith(".")) {
+      throw new LexerException("Malformed number literal.", startPosition, literal);
+    }
+
     // decrement by 1 so the main loop increment puts it in the right place.
     position--;
 
-    return new Token(TokenType.NUMBER, literal);
-  }
-
-  /*
-   * called when all legal cases are not met
-   * returns an Illegal token
-   */
-  private Token handleDefault(char charAtPosition) {
-    return new Token(TokenType.ILLEGAL, String.valueOf(charAtPosition));
+    return new TokenNumber(literal); // Use TokenNumber
   }
 }
