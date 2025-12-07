@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project name="java-json-parser" default="all" basedir=".">
+
+    <!-- Define property variables for project directories -->
+    <property name="src.dir" location="src"/>
+    <property name="build.dir" location="build"/>
+    <property name="classes.dir" location="${build.dir}/classes"/>
+    <property name="dist.dir" location="dist"/>
+    <property name="javadoc.dir" location="${dist.dir}/javadoc"/>
+
+    <!-- The 'clean' target deletes the build and dist directories to start fresh -->
+    <target name="clean" description="Deletes the build and dist directories.">
+        <delete dir="${build.dir}"/>
+        <delete dir="${dist.dir}"/>
+    </target>
+
+    <!-- The 'compile' target creates the build directory and compiles the Java source code -->
+    <target name="compile" depends="clean" description="Compiles all Java source files.">
+        <echo>Creating build directories...</echo>
+        <mkdir dir="${classes.dir}"/>
+        <echo>Compiling source files from ${src.dir}...</echo>
+        <javac srcdir="${src.dir}" destdir="${classes.dir}" includeantruntime="false"/>
+        <echo>Compilation successful!</echo>
+    </target>
+
+    <!-- A target to run the main class. It depends on 'compile' to ensure the code is up-to-date. -->
+    <target name="run" depends="compile" description="Runs the main program.">
+        <echo>Running the main program...</echo>
+        <java fork="true" classname="Main">
+            <classpath>
+                <pathelement location="${classes.dir}"/>
+            </classpath>
+        </java>
+    </target>
+
+    <!-- The 'javadoc' target generates documentation from your source code -->
+    <target name="javadoc" depends="compile" description="Generates Javadoc documentation.">
+        <echo>Generating Javadoc documentation...</echo>
+        <mkdir dir="${javadoc.dir}"/>
+        <javadoc sourcepath="${src.dir}" destdir="${javadoc.dir}"/>
+        <echo>Javadoc generated successfully!</echo>
+    </target>
+    
+    <!-- An 'all' target to run all of the common build processes -->
+    <target name="all" depends="javadoc, run" description="Builds, documents, runs, and tests the project."/>
+
+</project>
